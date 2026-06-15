@@ -515,13 +515,6 @@ function validarCamposObrigatorios() {
           return "❌ Selecione a categoria (Masculino/Feminino).";
         }
       }
-    } else {
-      const numeroNaoAtleta = document.getElementById("numeroNaoAtleta").value;
-      const categoriaNaoAtleta = document.getElementById("categoriaNaoAtleta").value;
-      
-      if (numeroNaoAtleta && !categoriaNaoAtleta) {
-        return "❌ Se você escolheu um número, também deve escolher a categoria.";
-      }
     }
   }
   
@@ -629,8 +622,8 @@ async function carregarNumeros() {
       
       if (ocupado) {
         opt.textContent = i + " (já em uso)";
-        opt.disabled = false;
-        opt.style.color = "#e8a020";
+        opt.disabled = true;
+        opt.style.color = "#999";
         opt.style.backgroundColor = "transparent";
       } else {
         opt.textContent = i;
@@ -651,20 +644,9 @@ async function carregarNumerosNaoAtleta() {
     const todosOcupados = await res.json();
     select.innerHTML = '<option value="">Não se aplica</option>';
     for (let i = 0; i <= 100; i++) {
-      const chaveM = "M-" + i;
-      const chaveF = "F-" + i;
-      const ocupado = todosOcupados.includes(chaveM) || todosOcupados.includes(chaveF);
       const opt = document.createElement("option");
       opt.value = i;
-      
-      if (ocupado) {
-        opt.textContent = i + " (⚠️ já em uso - pode repetir)";
-        opt.disabled = false;
-        opt.style.color = "#e8a020";
-      } else {
-        opt.textContent = i;
-      }
-      
+      opt.textContent = i;
       select.appendChild(opt);
     }
   } catch (err) {
