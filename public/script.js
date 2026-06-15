@@ -1,11 +1,11 @@
-const API_URL = "https://script.google.com/macros/s/AKfycbwD-oxumRBcYtbmSBCT4cGiMohyv97r6fTLOyviuRTw91rOg7tDxKu1QKwJqDX8Qmo9Sg/exec";
-
+const API_URL = "/api/pedidos"; // Endpoint do proxy para Google Apps Script
 let ocupados = [];
 let carrinho = [];
+let enviando = false; // Trava para evitar envio duplicado
 
 // Catálogo de produtos
 const produtos = [
-   { id: "kit-atleta", nome: "Kit Atleta", preco: 150, img: "img/kit-atleta.jpg", desc: "Kit exclusivo para atletas", ehCamisa: true },
+  { id: "kit-atleta", nome: "Kit Atleta", preco: 150, img: "img/kit-atleta.jpg", desc: "Kit exclusivo para atletas", ehCamisa: true },
   { id: "camisa-jogador", nome: "Camisa Jogador", preco: 95, img: "img/camisa-jogador.jpg", desc: "Camisa oficial de jogo", ehCamisa: true },
   { id: "camisa-goleiro", nome: "Camisa Goleiro", preco: 95, img: "img/camisa-goleiro.jpg", desc: "Camisa exclusiva para goleiros", ehCamisa: true },
   { id: "kit", nome: "Kit Caneca + Tirante", preco: 40, img: "img/kit.jpg", desc: "Kit completo de acessórios", ehCamisa: false },
@@ -25,6 +25,23 @@ document.addEventListener("DOMContentLoaded", () => {
   toggleAtleta();
 });
 
+/* ========== LOADING ========== */
+function mostrarLoading() {
+  const btn = document.getElementById("btn");
+  btn.disabled = true;
+  btn.innerHTML = '<span class="spinner"></span> Enviando pedido...';
+  btn.style.opacity = "0.7";
+  btn.style.cursor = "not-allowed";
+}
+
+function esconderLoading() {
+  const btn = document.getElementById("btn");
+  btn.disabled = false;
+  btn.innerHTML = 'Confirmar Pedido';
+  btn.style.opacity = "1";
+  btn.style.cursor = "pointer";
+}
+
 /* ========== TEMA ========== */
 function toggleTema() {
   const html = document.documentElement;
@@ -42,11 +59,9 @@ function toggleAtleta() {
   const souAtleta = document.getElementById("souAtleta").checked;
   const temCamisa = carrinhoTemCamisa();
   
-  // Só mostra campos de atleta se tiver camisa no carrinho
   document.getElementById("camposAtleta").style.display = (souAtleta && temCamisa) ? "block" : "none";
   document.getElementById("camposNaoAtleta").style.display = (souAtleta && temCamisa) ? "none" : "block";
   
-  // Se não tem camisa, esconde tudo relacionado a camisa
   if (!temCamisa) {
     document.getElementById("camposAtleta").style.display = "none";
     document.getElementById("camposNaoAtleta").style.display = "none";
@@ -65,6 +80,17 @@ function toggleRepetirNumero() {
   const repetir = document.getElementById("repetirNumero").checked;
   document.getElementById("avisoRepetir").style.display = repetir ? "block" : "none";
   document.getElementById("camposNumeroNovo").style.display = repetir ? "none" : "block";
+}
+
+// Função para permitir apenas números
+function apenasNumeros(event) {
+  const charCode = event.which ? event.which : event.keyCode;
+  // Permite apenas dígitos numéricos (48-57 no teclado)
+  if (charCode < 48 || charCode > 57) {
+    event.preventDefault();
+    return false;
+  }
+  return true;
 }
 
 /* ========== COPIAR PIX ========== */
@@ -261,7 +287,6 @@ function irParaCheckout() {
   document.getElementById("checkoutOverlay").style.display = "block";
   document.getElementById("checkoutOverlay").scrollIntoView({ behavior: "smooth" });
   
-  // Mostra/esconde campos baseado se tem camisa
   mostrarCamposCamisa(temCamisa);
   
   toggleAtleta();
@@ -270,41 +295,22 @@ function irParaCheckout() {
 }
 
 function mostrarCamposCamisa(temCamisa) {
-  const camposCamisa = [
-    "souAtleta",
-    "camposAtleta",
-    "camposNaoAtleta",
-    "tamanho",
-    "nomeCamisa"
-  ];
-  
-  // Checkbox de atleta
   const checkboxAtleta = document.getElementById("souAtleta").parentElement;
   checkboxAtleta.style.display = temCamisa ? "flex" : "none";
   
-  // Campos de atleta/não atleta
   document.getElementById("camposAtleta").style.display = temCamisa ? "block" : "none";
   document.getElementById("camposNaoAtleta").style.display = temCamisa ? "block" : "none";
   
-  // Label e select de tamanho
-  const labelTamanho = document.querySelector("label[for='tamanho']") || document.getElementById("tamanho").previousElementSibling;
-  if (labelTamanho) labelTamanho.style.display = temCamisa ? "block" : "none";
   document.getElementById("tamanho").style.display = temCamisa ? "block" : "none";
-  document.getElementById("tamanho").parentElement.querySelector("label").style.display = temCamisa ? "block" : "none";
-  
-  // Label e input de nome na camisa
-  const labelNomeCamisa = document.querySelector("label[for='nomeCamisa']") || document.getElementById("nomeCamisa").previousElementSibling;
-  if (labelNomeCamisa) labelNomeCamisa.style.display = temCamisa ? "block" : "none";
   document.getElementById("nomeCamisa").style.display = temCamisa ? "block" : "none";
   
-  // Ajusta labels anteriores
+  // Esconde/mostra as labels correspondentes
   const labels = document.querySelectorAll(".card > label");
   labels.forEach(label => {
-    const input = label.nextElementSibling;
-    if (input && input.id === "tamanho") {
+    if (label.textContent.includes("Tamanho")) {
       label.style.display = temCamisa ? "block" : "none";
     }
-    if (input && input.id === "nomeCamisa") {
+    if (label.textContent.includes("Nome na camisa")) {
       label.style.display = temCamisa ? "block" : "none";
     }
   });
@@ -399,7 +405,17 @@ function toBase64(file) {
 }
 
 async function enviarPedido() {
+  // Evita envio duplicado
+  if (enviando) {
+    console.log("Já está enviando...");
+    return;
+  }
+  enviando = true;
+  mostrarLoading();
+  
   const msg = document.getElementById("msg");
+  msg.innerText = "";
+  
   const nome = document.getElementById("nome").value.trim();
   const telefone = document.getElementById("telefone").value.trim();
   const temCamisa = carrinhoTemCamisa();
@@ -416,7 +432,8 @@ async function enviarPedido() {
     if (souAtleta) {
       if (repetirNumero) {
         categoria = document.getElementById("categoria").value;
-        numero = Number(document.getElementById("numeroRepetir").value);
+        const numRepetir = document.getElementById("numeroRepetir").value;
+        numero = numRepetir ? Number(numRepetir) : "";
       } else {
         categoria = document.getElementById("categoria").value;
         numero = Number(document.getElementById("numero").value);
@@ -424,34 +441,41 @@ async function enviarPedido() {
     } else {
       categoria = document.getElementById("categoriaNaoAtleta").value || "Não informado";
       const numNaoAtleta = document.getElementById("numeroNaoAtleta").value;
-      numero = numNaoAtleta || 0;
+      numero = numNaoAtleta ? Number(numNaoAtleta) : "";
     }
   } else {
     categoria = "Não se aplica";
-    numero = 0;
+    numero = "";
   }
 
-  if (!nome || !telefone) {
-    msg.innerText = "❌ Nome e telefone são obrigatórios.";
+  if (!nome) {
+    msg.innerText = "❌ Nome é obrigatório.";
     msg.style.color = "#c44";
+    enviando = false;
+    esconderLoading();
     return;
   }
 
-  if (carrinho.length === 0) {
-    msg.innerText = "❌ Seu carrinho está vazio.";
+  if (telefone.length < 10 || telefone.length > 11) {
+    msg.innerText = "❌ Telefone inválido! Digite DDD + número (ex: 81999999999)";
     msg.style.color = "#c44";
+    enviando = false;
+    esconderLoading();
     return;
   }
 
-  // Se for cartão, salva o pedido e redireciona para WhatsApp
-  if (pagamento === "cartao") {
-    const produtosPedido = carrinho.map(c => `${c.nome} x${c.qtd}`).join(", ");
-    const totalPedido = carrinho.reduce((s, c) => s + (c.preco * c.qtd), 0);
+  try {
+    // Cartão
+    if (pagamento === "cartao") {
+      const produtosPedido = carrinho.map(c => `${c.nome} x${c.qtd}`).join(", ");
+      const totalPedido = carrinho.reduce((s, c) => s + (c.preco * c.qtd), 0);
 
-    try {
       const res = await fetch(API_URL, {
         method: "POST",
-        body: JSON.stringify({
+        headers: {
+          "Content-Type": "application/x-www-form-urlencoded",
+        },
+        body: "data=" + encodeURIComponent(JSON.stringify({
           nome,
           telefone,
           categoria,
@@ -466,28 +490,21 @@ async function enviarPedido() {
           souAtleta,
           repetirNumero,
           observacao
-        })
+        }))
       });
 
       const data = await res.json();
+      
       if (data.sucesso) {
         document.getElementById("checkoutOverlay").style.display = "none";
-        
-        msg.innerText = "";
-        carrinho = [];
-        atualizarCarrinho();
-        renderizarProdutos();
-        document.getElementById("nome").value = "";
-        document.getElementById("telefone").value = "";
-        document.getElementById("nomeCamisa").value = "";
-        document.getElementById("observacao").value = "";
+        limparFormulario();
         
         const mensagemWpp = `Olá! Finalizei meu pedido na Lojinha Cangaceiros e quero pagar com cartão.%0A%0A` +
           `*Nome:* ${nome}%0A` +
           `*Telefone:* ${telefone}%0A` +
           `*Produtos:* ${produtosPedido}%0A` +
           (temCamisa ? `*Tamanho:* ${tamanho}%0A` : "") +
-          (temCamisa ? `*Número:* ${numero !== 0 ? numero : 'Não se aplica'}%0A` : "") +
+          (temCamisa && numero !== "" ? `*Número:* ${numero}%0A` : "") +
           (temCamisa ? `*Nome na camisa:* ${nomeCamisa || 'Não informado'}%0A` : "") +
           `*Observação:* ${observacao || 'Nenhuma'}%0A` +
           `*Total:* R$ ${totalPedido.toFixed(2)}%0A%0A` +
@@ -498,31 +515,28 @@ async function enviarPedido() {
         msg.innerText = data.mensagem || "❌ Erro ao salvar pedido";
         msg.style.color = "#c44";
       }
-    } catch (err) {
-      console.error(err);
-      msg.innerText = "❌ Erro ao enviar pedido";
-      msg.style.color = "#c44";
+      return;
     }
-    return;
-  }
 
-  // Pagamento via PIX
-  const file = document.getElementById("comprovante").files[0];
-  if (pagamento === "pix" && !file) {
-    msg.innerText = "❌ Envie o comprovante do PIX.";
-    msg.style.color = "#c44";
-    return;
-  }
+    // PIX
+    const file = document.getElementById("comprovante").files[0];
+    if (!file) {
+      msg.innerText = "❌ Envie o comprovante do PIX.";
+      msg.style.color = "#c44";
+      enviando = false;
+      esconderLoading();
+      return;
+    }
 
-  let comprovante = "";
-  if (file) comprovante = await toBase64(file);
+    const comprovante = await toBase64(file);
+    const produtosPedido = carrinho.map(c => `${c.nome} x${c.qtd}`).join(", ");
 
-  const produtosPedido = carrinho.map(c => `${c.nome} x${c.qtd}`).join(", ");
-
-  try {
     const res = await fetch(API_URL, {
       method: "POST",
-      body: JSON.stringify({
+      headers: {
+        "Content-Type": "application/x-www-form-urlencoded",
+      },
+      body: "data=" + encodeURIComponent(JSON.stringify({
         nome,
         telefone,
         categoria,
@@ -537,32 +551,39 @@ async function enviarPedido() {
         souAtleta,
         repetirNumero,
         observacao
-      })
+      }))
     });
 
     const data = await res.json();
+    
     if (data.sucesso) {
       document.getElementById("checkoutOverlay").style.display = "none";
       document.getElementById("sucessoOverlay").style.display = "flex";
-      
-      msg.innerText = "";
-      carrinho = [];
-      atualizarCarrinho();
-      renderizarProdutos();
-      document.getElementById("nome").value = "";
-      document.getElementById("telefone").value = "";
-      document.getElementById("nomeCamisa").value = "";
-      document.getElementById("observacao").value = "";
-      document.getElementById("comprovante").value = "";
-      carregarNumeros();
-      carregarNumerosNaoAtleta();
+      limparFormulario();
     } else {
       msg.innerText = data.mensagem || "❌ Erro no pedido";
       msg.style.color = "#c44";
     }
+    
   } catch (err) {
-    console.error(err);
+    console.error("Erro ao enviar:", err);
     msg.innerText = "❌ Erro ao enviar pedido";
     msg.style.color = "#c44";
+  } finally {
+    enviando = false;
+    esconderLoading();
   }
+}
+
+function limparFormulario() {
+  carrinho = [];
+  atualizarCarrinho();
+  renderizarProdutos();
+  document.getElementById("nome").value = "";
+  document.getElementById("telefone").value = "";
+  document.getElementById("nomeCamisa").value = "";
+  document.getElementById("observacao").value = "";
+  document.getElementById("comprovante").value = "";
+  carregarNumeros();
+  carregarNumerosNaoAtleta();
 }

@@ -94,7 +94,9 @@
         <input id="nome" type="text" placeholder="Seu nome completo"/>
 
         <label>📞 Telefone / WhatsApp</label>
-        <input id="telefone" type="tel" maxlength="11" inputmode="numeric"  pattern="[0-9]{10,11}" placeholder="81999999999"/>
+        <input id="telefone" type="text" maxlength="11" placeholder="81999999999"
+                onkeypress="return apenasNumeros(event)"
+                oninput="this.value = this.value.replace(/\D/g, '')"/>
 
         <!-- CHECKBOX ATLETA -->
         <div class="checkbox-group">

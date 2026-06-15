@@ -865,6 +865,30 @@ button:hover {
   min-height: 20px;
   color: var(--texto-claro);
 }
+/* ========== SPINNER DE CARREGAMENTO ========== */
+.spinner {
+  display: inline-block;
+  width: 18px;
+  height: 18px;
+  border: 2px solid rgba(255,255,255,0.3);
+  border-radius: 50%;
+  border-top-color: #fff;
+  animation: spin 0.6s linear infinite;
+  margin-right: 8px;
+  vertical-align: middle;
+}
+
+@keyframes spin {
+  to {
+    transform: rotate(360deg);
+  }
+}
+
+/* Ajuste para o botão durante loading */
+button:disabled {
+  cursor: not-allowed !important;
+  opacity: 0.7 !important;
+}
 
 /* ========== TELA DE SUCESSO ========== */
 .sucesso-overlay {
