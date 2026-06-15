@@ -481,7 +481,62 @@ function voltarParaLojaPosSucesso() {
   window.scrollTo({ top: 0, behavior: "smooth" });
 }
 
+function validarCamposObrigatorios() {
+  const temCamisa = carrinhoTemCamisa();
+  const souAtleta = temCamisa ? document.getElementById("souAtleta").checked : false;
+  
+  if (temCamisa) {
+    const tamanho = document.getElementById("tamanho").value;
+    if (!tamanho || tamanho === "Não se aplica") {
+      return "❌ Tamanho da camisa é obrigatório.";
+    }
+    
+    const nomeCamisa = document.getElementById("nomeCamisa").value.trim();
+    if (!nomeCamisa) {
+      return "❌ Nome na camisa é obrigatório.";
+    }
+    
+    if (souAtleta) {
+      const repetirNumero = document.getElementById("repetirNumero").checked;
+      
+      if (repetirNumero) {
+        const numeroRepetir = document.getElementById("numeroRepetir").value;
+        if (!numeroRepetir || numeroRepetir === "") {
+          return "❌ Digite o número da sua camisa.";
+        }
+      } else {
+        const numero = document.getElementById("numero").value;
+        if (!numero || numero === "") {
+          return "❌ Selecione um número para sua camisa.";
+        }
+        
+        const categoria = document.getElementById("categoria").value;
+        if (!categoria) {
+          return "❌ Selecione a categoria (Masculino/Feminino).";
+        }
+      }
+    } else {
+      const numeroNaoAtleta = document.getElementById("numeroNaoAtleta").value;
+      const categoriaNaoAtleta = document.getElementById("categoriaNaoAtleta").value;
+      
+      if (numeroNaoAtleta && !categoriaNaoAtleta) {
+        return "❌ Se você escolheu um número, também deve escolher a categoria.";
+      }
+    }
+  }
+  
+  return null;
+}
+
 function confirmarEnvio() {
+  const erroValidacao = validarCamposObrigatorios();
+  if (erroValidacao) {
+    const msg = document.getElementById("msg");
+    msg.innerText = erroValidacao;
+    msg.style.color = "#c44";
+    return;
+  }
+  
   const nome = document.getElementById("nome").value.trim();
   const telefone = document.getElementById("telefone").value.trim();
   const pagamento = document.getElementById("pagamento").value;
@@ -565,7 +620,7 @@ async function carregarNumeros() {
     const categoria = document.getElementById("categoria").value;
     select.innerHTML = "";
     
-    for (let i = 1; i <= 100; i++) {
+    for (let i = 0; i <= 100; i++) {
       const chave = categoria + "-" + i;
       const ocupado = ocupados.includes(chave);
       
@@ -574,8 +629,8 @@ async function carregarNumeros() {
       
       if (ocupado) {
         opt.textContent = i + " (já em uso)";
-        opt.disabled = true;
-        opt.style.color = "#999";
+        opt.disabled = false;
+        opt.style.color = "#e8a020";
         opt.style.backgroundColor = "transparent";
       } else {
         opt.textContent = i;
@@ -595,7 +650,7 @@ async function carregarNumerosNaoAtleta() {
     const res = await fetch(API_URL);
     const todosOcupados = await res.json();
     select.innerHTML = '<option value="">Não se aplica</option>';
-    for (let i = 1; i <= 100; i++) {
+    for (let i = 0; i <= 100; i++) {
       const chaveM = "M-" + i;
       const chaveF = "F-" + i;
       const ocupado = todosOcupados.includes(chaveM) || todosOcupados.includes(chaveF);
@@ -603,9 +658,9 @@ async function carregarNumerosNaoAtleta() {
       opt.value = i;
       
       if (ocupado) {
-        opt.textContent = i + " (já em uso)";
-        opt.disabled = true;
-        opt.style.color = "#999";
+        opt.textContent = i + " (⚠️ já em uso - pode repetir)";
+        opt.disabled = false;
+        opt.style.color = "#e8a020";
       } else {
         opt.textContent = i;
       }
