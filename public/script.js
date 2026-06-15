@@ -471,13 +471,13 @@ function mostrarCamposCamisa(temCamisa) {
 
 function voltarParaLoja() {
   document.getElementById("checkoutOverlay").style.display = "none";
-  document.body.classList.remove("checkout-abierto");
+  document.body.classList.remove("checkout-aberto");
   window.scrollTo({ top: 0, behavior: "smooth" });
 }
 
 function voltarParaLojaPosSucesso() {
   document.getElementById("sucessoOverlay").style.display = "none";
-  document.body.classList.remove("checkout-abierto");
+  document.body.classList.remove("checkout-aberto");
   window.scrollTo({ top: 0, behavior: "smooth" });
 }
 
@@ -593,6 +593,7 @@ function confirmarEnvio() {
   
   document.getElementById("confirmarEnvioBtn").onclick = () => {
     modal.remove();
+    mostrarLoading();
     enviarPedido();
   };
   
@@ -675,7 +676,6 @@ async function enviarPedido() {
     return;
   }
   enviando = true;
-  mostrarLoading();
   
   const msg = document.getElementById("msg");
   msg.innerText = "";
@@ -765,6 +765,7 @@ async function enviarPedido() {
       if (data.sucesso) {
         document.getElementById("checkoutOverlay").style.display = "none";
         limparFormulario();
+        esconderLoading();
         
         const mensagemWpp = `Olá! Finalizei meu pedido na Lojinha Cangaceiros e quero pagar com cartão.%0A%0A` +
           `*Nome:* ${nome}%0A` +
@@ -782,6 +783,7 @@ async function enviarPedido() {
       } else {
         msg.innerText = data.mensagem || "❌ Erro ao salvar pedido";
         msg.style.color = "#c44";
+        esconderLoading();
       }
       return;
     }
@@ -827,18 +829,20 @@ async function enviarPedido() {
       document.getElementById("checkoutOverlay").style.display = "none";
       document.getElementById("sucessoOverlay").style.display = "flex";
       limparFormulario();
+      esconderLoading();
     } else {
       msg.innerText = data.mensagem || "❌ Erro no pedido";
       msg.style.color = "#c44";
+      esconderLoading();
     }
     
   } catch (err) {
     console.error("Erro ao enviar:", err);
     msg.innerText = "❌ Erro ao enviar pedido";
     msg.style.color = "#c44";
+    esconderLoading();
   } finally {
     enviando = false;
-    esconderLoading();
   }
 }
 
