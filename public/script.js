@@ -54,7 +54,7 @@ document.addEventListener("DOMContentLoaded", () => {
   carregarNumeros();
   carregarNumerosNaoAtleta();
   atualizarCarrinho();
-  document.getElementById("btn").addEventListener("click", confirmarEnvio);
+  document.getElementById("btn").addEventListener("click", enviarPedido);
   toggleAtleta();
   
   const comprovanteInput = document.getElementById("comprovante");
@@ -521,91 +521,6 @@ function validarCamposObrigatorios() {
   return null;
 }
 
-function confirmarEnvio() {
-  const erroValidacao = validarCamposObrigatorios();
-  if (erroValidacao) {
-    const msg = document.getElementById("msg");
-    msg.innerText = erroValidacao;
-    msg.style.color = "#c44";
-    return;
-  }
-  
-  const nome = document.getElementById("nome").value.trim();
-  const telefone = document.getElementById("telefone").value.trim();
-  const pagamento = document.getElementById("pagamento").value;
-  const totalPedido = carrinho.reduce((s, c) => s + (c.preco * c.qtd), 0);
-  const produtosPedido = carrinho.map(c => `${c.nome} x${c.qtd}`).join(", ");
-  
-  const modal = document.createElement("div");
-  modal.className = "confirmacao-modal";
-  modal.style.cssText = `
-    position: fixed;
-    top: 0;
-    left: 0;
-    right: 0;
-    bottom: 0;
-    background: rgba(0,0,0,0.8);
-    z-index: 350;
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    backdrop-filter: blur(4px);
-  `;
-  
-  modal.innerHTML = `
-    <div style="
-      background: var(--bg-card);
-      border-radius: 16px;
-      max-width: 500px;
-      width: 90%;
-      padding: 1.5rem;
-      border: 1px solid var(--borda-card);
-      box-shadow: 0 8px 32px rgba(0,0,0,0.3);
-    ">
-      <h3 style="margin-bottom: 1rem; color: var(--destaque);">📋 Confirme seu pedido</h3>
-      
-      <div style="margin-bottom: 1rem; max-height: 200px; overflow-y: auto; background: var(--bg-input); padding: 0.8rem; border-radius: 8px;">
-        <strong>🛒 Produtos:</strong><br>
-        <span style="font-size: 0.85rem;">${produtosPedido}</span>
-        <hr style="margin: 8px 0; border-color: var(--borda);">
-        <strong>💰 Total:</strong> R$ ${totalPedido.toFixed(2)}<br>
-        <strong>👤 Nome:</strong> ${nome || "Não informado"}<br>
-        <strong>📞 Telefone:</strong> ${telefone || "Não informado"}<br>
-        <strong>💳 Pagamento:</strong> ${pagamento === "pix" ? "PIX" : "Cartão"}<br>
-      </div>
-      
-      <p style="font-size: 0.8rem; color: var(--texto-claro); margin-bottom: 1rem;">
-        ${pagamento === "pix" ? "⚠️ Verifique se o comprovante foi anexado corretamente." : "⚠️ Você será redirecionado ao WhatsApp para finalizar."}
-      </p>
-      
-      <div style="display: flex; gap: 1rem;">
-        <button id="confirmarEnvioBtn" style="flex:1; background: var(--destaque); color: #1a1814;">
-          ✅ Confirmar
-        </button>
-        <button id="cancelarEnvioBtn" style="flex:1; background: var(--bg-input); color: var(--texto); border: 1px solid var(--borda);">
-          ✕ Cancelar
-        </button>
-      </div>
-    </div>
-  `;
-  
-  document.body.appendChild(modal);
-  
-  document.getElementById("confirmarEnvioBtn").onclick = () => {
-    modal.remove();
-    mostrarLoading();
-    enviarPedido();
-  };
-  
-  document.getElementById("cancelarEnvioBtn").onclick = () => {
-    modal.remove();
-  };
-  
-  modal.onclick = (e) => {
-    if (e.target === modal) modal.remove();
-  };
-}
-
 async function carregarNumeros() {
   const select = document.getElementById("numero");
   try {
@@ -675,7 +590,17 @@ async function enviarPedido() {
     console.log("Já está enviando...");
     return;
   }
+  
+  const erroValidacao = validarCamposObrigatorios();
+  if (erroValidacao) {
+    const msg = document.getElementById("msg");
+    msg.innerText = erroValidacao;
+    msg.style.color = "#c44";
+    return;
+  }
+  
   enviando = true;
+  mostrarLoading();
   
   const msg = document.getElementById("msg");
   msg.innerText = "";
