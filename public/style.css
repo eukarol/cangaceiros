@@ -985,19 +985,30 @@ button:disabled {
 
 @media (max-width: 768px) {
   .banner-carrinho {
-    top: 12px;
-    right: 12px;
-    padding: 8px 14px;
+    position: fixed;
+    bottom: 20px;
+    right: 20px;
+    top: auto;
+    z-index: 1000;
+    background: var(--destaque);
+    box-shadow: 0 4px 12px rgba(0,0,0,0.3);
+    padding: 12px 18px;
   }
   
   .banner-carrinho span:first-child {
-    font-size: 1rem;
+    font-size: 1.3rem;
+    color: #1a1814;
+  }
+  
+  .banner-carrinho:hover {
+    background: var(--destaque-escuro);
+    transform: scale(1.05);
   }
   
   .carrinho-badge {
-    width: 20px;
-    height: 20px;
-    font-size: 0.6rem;
+    background: #1a1814;
+    color: var(--destaque);
+    border: none;
   }
 
   .conteudo {
@@ -1029,7 +1040,7 @@ button:disabled {
   }
 
   .theme-toggle {
-    bottom: 16px;
+    bottom: 80px;
     right: 16px;
     width: 40px;
     height: 40px;
