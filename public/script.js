@@ -1,9 +1,10 @@
-const API_URL = "/api/pedidos"; // Endpoint do proxy para Google Apps Script
+const API_URL = "/api/pedidos";
 let ocupados = [];
 let carrinho = [];
-let enviando = false; // Trava para evitar envio duplicado
+let enviando = false;
 
-// Catálogo de produtos
+const CARRINHO_STORAGE_KEY = "cangaceiros_carrinho";
+
 const produtos = [
   { id: "kit-atleta", nome: "Kit Atleta", preco: 150, img: "img/kit-atleta.jpg", desc: "Kit exclusivo para atletas", ehCamisa: true },
   { id: "camisa-jogador", nome: "Camisa Jogador", preco: 95, img: "img/camisa-jogador.jpg", desc: "Camisa oficial de jogo", ehCamisa: true },
@@ -15,17 +16,53 @@ const produtos = [
   { id: "bucket", nome: "Bucket", preco: 30, img: "img/bucket.jpg", desc: "Bucket personalizado", ehCamisa: false }
 ];
 
-/* ========== INIT ========== */
+function salvarCarrinho() {
+  const dadosParaSalvar = carrinho.map(item => ({
+    id: item.id,
+    qtd: item.qtd
+  }));
+  localStorage.setItem(CARRINHO_STORAGE_KEY, JSON.stringify(dadosParaSalvar));
+}
+
+function carregarCarrinhoSalvo() {
+  const salvo = localStorage.getItem(CARRINHO_STORAGE_KEY);
+  if (!salvo) return;
+  
+  try {
+    const dadosSalvos = JSON.parse(salvo);
+    carrinho = [];
+    dadosSalvos.forEach(itemSalvo => {
+      const produtoOriginal = produtos.find(p => p.id === itemSalvo.id);
+      if (produtoOriginal) {
+        carrinho.push({ ...produtoOriginal, qtd: itemSalvo.qtd });
+      }
+    });
+    atualizarCarrinho();
+    renderizarProdutos();
+  } catch (err) {
+    console.error("Erro ao carregar carrinho salvo:", err);
+  }
+}
+
+function limparCarrinhoSalvo() {
+  localStorage.removeItem(CARRINHO_STORAGE_KEY);
+}
+
 document.addEventListener("DOMContentLoaded", () => {
   renderizarProdutos();
+  carregarCarrinhoSalvo();
   carregarNumeros();
   carregarNumerosNaoAtleta();
   atualizarCarrinho();
-  document.getElementById("btn").addEventListener("click", enviarPedido);
+  document.getElementById("btn").addEventListener("click", confirmarEnvio);
   toggleAtleta();
+  
+  const comprovanteInput = document.getElementById("comprovante");
+  if (comprovanteInput) {
+    comprovanteInput.addEventListener("change", previewComprovante);
+  }
 });
 
-/* ========== LOADING ========== */
 function mostrarLoading() {
   const btn = document.getElementById("btn");
   btn.disabled = true;
@@ -42,19 +79,16 @@ function esconderLoading() {
   btn.style.cursor = "pointer";
 }
 
-/* ========== TEMA ========== */
 function toggleTema() {
   const html = document.documentElement;
   const temaAtual = html.getAttribute("data-theme");
   html.setAttribute("data-theme", temaAtual === "dark" ? "light" : "dark");
 }
 
-/* ========== VERIFICA SE O CARRINHO TEM CAMISA ========== */
 function carrinhoTemCamisa() {
   return carrinho.some(item => item.ehCamisa);
 }
 
-/* ========== TOGGLE ATLETA ========== */
 function toggleAtleta() {
   const souAtleta = document.getElementById("souAtleta").checked;
   const temCamisa = carrinhoTemCamisa();
@@ -74,6 +108,8 @@ function toggleAtleta() {
     document.getElementById("repetirNumero").checked = false;
     toggleRepetirNumero();
   }
+  
+  validarTamanho();
 }
 
 function toggleRepetirNumero() {
@@ -82,10 +118,25 @@ function toggleRepetirNumero() {
   document.getElementById("camposNumeroNovo").style.display = repetir ? "none" : "block";
 }
 
-// Função para permitir apenas números
+function validarTamanho() {
+  const temCamisa = carrinhoTemCamisa();
+  const tamanhoSelect = document.getElementById("tamanho");
+  const opcaoNaoSeAplica = Array.from(tamanhoSelect.options).find(opt => opt.value === "Não se aplica");
+  
+  if (opcaoNaoSeAplica) {
+    if (temCamisa) {
+      opcaoNaoSeAplica.style.display = "none";
+      if (tamanhoSelect.value === "Não se aplica") {
+        tamanhoSelect.value = "M";
+      }
+    } else {
+      opcaoNaoSeAplica.style.display = "block";
+    }
+  }
+}
+
 function apenasNumeros(event) {
   const charCode = event.which ? event.which : event.keyCode;
-  // Permite apenas dígitos numéricos (48-57 no teclado)
   if (charCode < 48 || charCode > 57) {
     event.preventDefault();
     return false;
@@ -93,7 +144,6 @@ function apenasNumeros(event) {
   return true;
 }
 
-/* ========== COPIAR PIX ========== */
 function copiarPix() {
   const codigo = document.getElementById("pixCodigo").textContent;
   
@@ -123,7 +173,40 @@ function copiarPix() {
   });
 }
 
-/* ========== RENDERIZAR PRODUTOS ========== */
+function previewComprovante(event) {
+  const file = event.target.files[0];
+  if (!file) return;
+  
+  const reader = new FileReader();
+  reader.onload = function(e) {
+    const previewAntigo = document.querySelector(".comprovante-preview");
+    if (previewAntigo) previewAntigo.remove();
+    
+    const previewContainer = document.createElement("div");
+    previewContainer.className = "comprovante-preview";
+    
+    const img = document.createElement("img");
+    img.src = e.target.result;
+    
+    const info = document.createElement("div");
+    info.innerHTML = `<strong>${file.name}</strong><br>${(file.size / 1024).toFixed(1)} KB`;
+    
+    const removerBtn = document.createElement("button");
+    removerBtn.textContent = "✕";
+    removerBtn.onclick = () => {
+      previewContainer.remove();
+      document.getElementById("comprovante").value = "";
+    };
+    
+    previewContainer.appendChild(img);
+    previewContainer.appendChild(info);
+    previewContainer.appendChild(removerBtn);
+    
+    document.getElementById("pixBox").appendChild(previewContainer);
+  };
+  reader.readAsDataURL(file);
+}
+
 function renderizarProdutos() {
   const grid = document.getElementById("produtosGrid");
   grid.innerHTML = "";
@@ -172,7 +255,6 @@ function renderizarProdutos() {
   });
 }
 
-/* ========== CARRINHO ========== */
 function adicionarAoCarrinho(id) {
   const item = carrinho.find(c => c.id === id);
   if (item) {
@@ -181,8 +263,10 @@ function adicionarAoCarrinho(id) {
     const produto = produtos.find(p => p.id === id);
     carrinho.push({ ...produto, qtd: 1 });
   }
+  salvarCarrinho();
   atualizarCarrinho();
   renderizarProdutos();
+  validarTamanho();
 }
 
 function diminuirQtd(id) {
@@ -194,21 +278,92 @@ function diminuirQtd(id) {
       return;
     }
   }
+  salvarCarrinho();
   atualizarCarrinho();
   renderizarProdutos();
+  validarTamanho();
 }
 
 function aumentarQtd(id) {
   const item = carrinho.find(c => c.id === id);
   if (item) item.qtd++;
+  salvarCarrinho();
   atualizarCarrinho();
   renderizarProdutos();
+  validarTamanho();
 }
 
 function removerDoCarrinho(id) {
   carrinho = carrinho.filter(c => c.id !== id);
+  salvarCarrinho();
   atualizarCarrinho();
   renderizarProdutos();
+  validarTamanho();
+}
+
+function esvaziarCarrinho() {
+  if (carrinho.length === 0) return;
+  
+  const modal = document.createElement("div");
+  modal.className = "confirmacao-modal";
+  modal.style.cssText = `
+    position: fixed;
+    top: 0;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    background: rgba(0,0,0,0.8);
+    z-index: 350;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    backdrop-filter: blur(4px);
+  `;
+  
+  modal.innerHTML = `
+    <div style="
+      background: var(--bg-card);
+      border-radius: 16px;
+      max-width: 400px;
+      width: 90%;
+      padding: 1.5rem;
+      border: 1px solid var(--borda-card);
+      text-align: center;
+    ">
+      <div style="font-size: 3rem; margin-bottom: 1rem;">🗑️</div>
+      <h3 style="margin-bottom: 0.5rem;">Esvaziar carrinho?</h3>
+      <p style="color: var(--texto-claro); margin-bottom: 1.5rem;">
+        Todos os ${carrinho.reduce((s, c) => s + c.qtd, 0)} itens serão removidos.
+      </p>
+      <div style="display: flex; gap: 1rem;">
+        <button id="confirmarEsvaziarBtn" style="flex:1; background: #c44; color: white;">
+          ✅ Sim, esvaziar
+        </button>
+        <button id="cancelarEsvaziarBtn" style="flex:1; background: var(--bg-input); color: var(--texto); border: 1px solid var(--borda);">
+          ✕ Cancelar
+        </button>
+      </div>
+    </div>
+  `;
+  
+  document.body.appendChild(modal);
+  
+  document.getElementById("confirmarEsvaziarBtn").onclick = () => {
+    carrinho = [];
+    salvarCarrinho();
+    atualizarCarrinho();
+    renderizarProdutos();
+    validarTamanho();
+    modal.remove();
+  };
+  
+  document.getElementById("cancelarEsvaziarBtn").onclick = () => {
+    modal.remove();
+  };
+  
+  modal.onclick = (e) => {
+    if (e.target === modal) modal.remove();
+  };
 }
 
 function atualizarCarrinho() {
@@ -262,9 +417,6 @@ function abrirCarrinho() {
   }
 }
 
-function fecharCarrinho() {}
-
-/* ========== CHECKOUT ========== */
 function irParaCheckout() {
   if (carrinho.length === 0) return;
 
@@ -285,6 +437,7 @@ function irParaCheckout() {
   `;
 
   document.getElementById("checkoutOverlay").style.display = "block";
+  document.body.classList.add("checkout-aberto");
   document.getElementById("checkoutOverlay").scrollIntoView({ behavior: "smooth" });
   
   mostrarCamposCamisa(temCamisa);
@@ -292,6 +445,7 @@ function irParaCheckout() {
   toggleAtleta();
   carregarNumeros();
   carregarNumerosNaoAtleta();
+  validarTamanho();
 }
 
 function mostrarCamposCamisa(temCamisa) {
@@ -304,7 +458,6 @@ function mostrarCamposCamisa(temCamisa) {
   document.getElementById("tamanho").style.display = temCamisa ? "block" : "none";
   document.getElementById("nomeCamisa").style.display = temCamisa ? "block" : "none";
   
-  // Esconde/mostra as labels correspondentes
   const labels = document.querySelectorAll(".card > label");
   labels.forEach(label => {
     if (label.textContent.includes("Tamanho")) {
@@ -318,15 +471,92 @@ function mostrarCamposCamisa(temCamisa) {
 
 function voltarParaLoja() {
   document.getElementById("checkoutOverlay").style.display = "none";
+  document.body.classList.remove("checkout-abierto");
   window.scrollTo({ top: 0, behavior: "smooth" });
 }
 
 function voltarParaLojaPosSucesso() {
   document.getElementById("sucessoOverlay").style.display = "none";
+  document.body.classList.remove("checkout-abierto");
   window.scrollTo({ top: 0, behavior: "smooth" });
 }
 
-/* ========== NÚMEROS ========== */
+function confirmarEnvio() {
+  const nome = document.getElementById("nome").value.trim();
+  const telefone = document.getElementById("telefone").value.trim();
+  const pagamento = document.getElementById("pagamento").value;
+  const totalPedido = carrinho.reduce((s, c) => s + (c.preco * c.qtd), 0);
+  const produtosPedido = carrinho.map(c => `${c.nome} x${c.qtd}`).join(", ");
+  
+  const modal = document.createElement("div");
+  modal.className = "confirmacao-modal";
+  modal.style.cssText = `
+    position: fixed;
+    top: 0;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    background: rgba(0,0,0,0.8);
+    z-index: 350;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    backdrop-filter: blur(4px);
+  `;
+  
+  modal.innerHTML = `
+    <div style="
+      background: var(--bg-card);
+      border-radius: 16px;
+      max-width: 500px;
+      width: 90%;
+      padding: 1.5rem;
+      border: 1px solid var(--borda-card);
+      box-shadow: 0 8px 32px rgba(0,0,0,0.3);
+    ">
+      <h3 style="margin-bottom: 1rem; color: var(--destaque);">📋 Confirme seu pedido</h3>
+      
+      <div style="margin-bottom: 1rem; max-height: 200px; overflow-y: auto; background: var(--bg-input); padding: 0.8rem; border-radius: 8px;">
+        <strong>🛒 Produtos:</strong><br>
+        <span style="font-size: 0.85rem;">${produtosPedido}</span>
+        <hr style="margin: 8px 0; border-color: var(--borda);">
+        <strong>💰 Total:</strong> R$ ${totalPedido.toFixed(2)}<br>
+        <strong>👤 Nome:</strong> ${nome || "Não informado"}<br>
+        <strong>📞 Telefone:</strong> ${telefone || "Não informado"}<br>
+        <strong>💳 Pagamento:</strong> ${pagamento === "pix" ? "PIX" : "Cartão"}<br>
+      </div>
+      
+      <p style="font-size: 0.8rem; color: var(--texto-claro); margin-bottom: 1rem;">
+        ${pagamento === "pix" ? "⚠️ Verifique se o comprovante foi anexado corretamente." : "⚠️ Você será redirecionado ao WhatsApp para finalizar."}
+      </p>
+      
+      <div style="display: flex; gap: 1rem;">
+        <button id="confirmarEnvioBtn" style="flex:1; background: var(--destaque); color: #1a1814;">
+          ✅ Confirmar
+        </button>
+        <button id="cancelarEnvioBtn" style="flex:1; background: var(--bg-input); color: var(--texto); border: 1px solid var(--borda);">
+          ✕ Cancelar
+        </button>
+      </div>
+    </div>
+  `;
+  
+  document.body.appendChild(modal);
+  
+  document.getElementById("confirmarEnvioBtn").onclick = () => {
+    modal.remove();
+    enviarPedido();
+  };
+  
+  document.getElementById("cancelarEnvioBtn").onclick = () => {
+    modal.remove();
+  };
+  
+  modal.onclick = (e) => {
+    if (e.target === modal) modal.remove();
+  };
+}
+
 async function carregarNumeros() {
   const select = document.getElementById("numero");
   try {
@@ -387,14 +617,12 @@ async function carregarNumerosNaoAtleta() {
   }
 }
 
-/* ========== PAGAMENTO ========== */
 function trocarPagamento() {
   const tipo = document.getElementById("pagamento").value;
   document.getElementById("pixBox").style.display = tipo === "pix" ? "block" : "none";
   document.getElementById("cartaoBox").style.display = tipo === "cartao" ? "block" : "none";
 }
 
-/* ========== ENVIAR PEDIDO ========== */
 function toBase64(file) {
   return new Promise((resolve, reject) => {
     const reader = new FileReader();
@@ -405,7 +633,6 @@ function toBase64(file) {
 }
 
 async function enviarPedido() {
-  // Evita envio duplicado
   if (enviando) {
     console.log("Já está enviando...");
     return;
@@ -433,7 +660,11 @@ async function enviarPedido() {
       if (repetirNumero) {
         categoria = document.getElementById("categoria").value;
         const numRepetir = document.getElementById("numeroRepetir").value;
-        numero = numRepetir ? Number(numRepetir) : "";
+        if (numRepetir === "0") {
+          numero = "0";
+        } else {
+          numero = numRepetir ? Number(numRepetir) : "";
+        }
       } else {
         categoria = document.getElementById("categoria").value;
         numero = Number(document.getElementById("numero").value);
@@ -465,7 +696,6 @@ async function enviarPedido() {
   }
 
   try {
-    // Cartão
     if (pagamento === "cartao") {
       const produtosPedido = carrinho.map(c => `${c.nome} x${c.qtd}`).join(", ");
       const totalPedido = carrinho.reduce((s, c) => s + (c.preco * c.qtd), 0);
@@ -504,7 +734,8 @@ async function enviarPedido() {
           `*Telefone:* ${telefone}%0A` +
           `*Produtos:* ${produtosPedido}%0A` +
           (temCamisa ? `*Tamanho:* ${tamanho}%0A` : "") +
-          (temCamisa && numero !== "" ? `*Número:* ${numero}%0A` : "") +
+          (temCamisa && numero !== "" && numero !== "0" ? `*Número:* ${numero}%0A` : "") +
+          (temCamisa && numero === "0" ? `*Número:* 0 (Goleiro)%0A` : "") +
           (temCamisa ? `*Nome na camisa:* ${nomeCamisa || 'Não informado'}%0A` : "") +
           `*Observação:* ${observacao || 'Nenhuma'}%0A` +
           `*Total:* R$ ${totalPedido.toFixed(2)}%0A%0A` +
@@ -518,7 +749,6 @@ async function enviarPedido() {
       return;
     }
 
-    // PIX
     const file = document.getElementById("comprovante").files[0];
     if (!file) {
       msg.innerText = "❌ Envie o comprovante do PIX.";
@@ -577,6 +807,7 @@ async function enviarPedido() {
 
 function limparFormulario() {
   carrinho = [];
+  limparCarrinhoSalvo();
   atualizarCarrinho();
   renderizarProdutos();
   document.getElementById("nome").value = "";
@@ -584,6 +815,10 @@ function limparFormulario() {
   document.getElementById("nomeCamisa").value = "";
   document.getElementById("observacao").value = "";
   document.getElementById("comprovante").value = "";
+  
+  const preview = document.querySelector(".comprovante-preview");
+  if (preview) preview.remove();
+  
   carregarNumeros();
   carregarNumerosNaoAtleta();
 }

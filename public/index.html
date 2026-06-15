@@ -9,13 +9,11 @@
 </head>
 <body>
 
-  <!-- TOGGLE TEMA -->
   <button class="theme-toggle" onclick="toggleTema()" aria-label="Alternar tema">
     <span class="theme-icon-light">☀️</span>
     <span class="theme-icon-dark">🌙</span>
   </button>
 
-  <!-- BANNER IMAGEM PURA (3797x1688) -->
   <div class="banner-wrapper">
     <img src="img/bannertopo.png" alt="Cangaceiros" class="banner-imagem" onerror="this.style.display='none'"/>
     <div class="banner-carrinho" onclick="abrirCarrinho()">
@@ -24,15 +22,6 @@
     </div>
   </div>
 
-  <!-- TÍTULO DA LOJA 
-  <div class="loja-header">
-    <div class="loja-header-conteudo">
-      <h1>🦎LOJINHA A.A.A CANGACEIROS🦎</h1>
-      <p>Produtos oficiais da maior atlética do agreste pernambucano</p>
-    </div>
-  </div> -->
-
-  <!-- CONTEÚDO PRINCIPAL -->
   <main class="conteudo">
 
     <div class="secao-titulo-wrapper">
@@ -41,15 +30,15 @@
         <p>Clique para adicionar ao carrinho</p>
       </div>
 
-      <!-- GRADE DE PRODUTOS -->
       <section class="produtos-grid" id="produtosGrid"></section>
     </div>
 
-    <!-- PAINEL DO CARRINHO -->
     <aside class="carrinho-painel" id="carrinhoPainel">
       <div class="carrinho-painel-header">
         <h2>🛒 Seu Carrinho</h2>
-        <button class="carrinho-fechar" onclick="fecharCarrinho()">✕</button>
+        <button class="carrinho-esvaziar" onclick="esvaziarCarrinho()" title="Esvaziar carrinho">
+          🗑️
+        </button>
       </div>
       <div class="carrinho-itens" id="carrinhoItens">
         <p class="carrinho-vazio">Nenhum item adicionado ainda</p>
@@ -67,7 +56,6 @@
 
   </main>
 
-  <!-- RODAPÉ -->
   <footer class="rodape">
     <div class="rodape-conteudo">
       <p class="rodape-slogan">🦎 O CANGAÇO DOMINA! 🦎</p>
@@ -81,7 +69,6 @@
     </div>
   </footer>
 
-  <!-- CHECKOUT OVERLAY -->
   <div class="checkout-overlay" id="checkoutOverlay" style="display:none;">
     <div class="checkout-container">
       <button class="checkout-voltar" onclick="voltarParaLoja()">← Voltar para loja</button>
@@ -98,13 +85,11 @@
                 onkeypress="return apenasNumeros(event)"
                 oninput="this.value = this.value.replace(/\D/g, '')"/>
 
-        <!-- CHECKBOX ATLETA -->
         <div class="checkbox-group">
           <input type="checkbox" id="souAtleta" onchange="toggleAtleta()"/>
           <label for="souAtleta" class="checkbox-label">Sou atleta da A.A.A Cangaceiros</label>
         </div>
 
-        <!-- CAMPOS DE ATLETA -->
         <div id="camposAtleta" style="display:none;">
           <div class="checkbox-group">
             <input type="checkbox" id="repetirNumero" onchange="toggleRepetirNumero()"/>
@@ -116,7 +101,7 @@
               ⚠️ Seu número será verificado pela equipe. Se já estiver em uso por outro atleta, entraremos em contato.
             </div>
             <label>🔢 Digite seu número</label>
-            <input id="numeroRepetir" type="number" min="1" max="100" placeholder="Digite o número da sua camisa"/>
+            <input id="numeroRepetir" type="number" min="0" max="100" placeholder="Digite o número da sua camisa"/>
           </div>
 
           <div id="camposNumeroNovo">
@@ -133,7 +118,6 @@
           </div>
         </div>
 
-        <!-- NÃO ATLETA -->
         <div id="camposNaoAtleta">
           <label>👕 Categoria (opcional)</label>
           <select id="categoriaNaoAtleta">
@@ -171,7 +155,6 @@
           <option value="cartao">Cartão</option>
         </select>
 
-        <!-- PIX -->
         <div id="pixBox">
           <div class="pix-container">
             <div class="pix-qrcode">
@@ -190,18 +173,16 @@
           <input type="file" id="comprovante" accept="image/*"/>
         </div>
 
-        <!-- CARTÃO -->
         <div id="cartaoBox" style="display:none;">
           <p class="cartao-aviso">💬 Ao finalizar, você será direcionado ao WhatsApp para concluir o pagamento.</p>
         </div>
 
-        <button id="btn" onclick="enviarPedido()">Confirmar Pedido</button>
+        <button id="btn" onclick="confirmarEnvio()">Confirmar Pedido</button>
         <p id="msg"></p>
       </div>
     </div>
   </div>
 
-  <!-- TELA DE SUCESSO -->
   <div class="sucesso-overlay" id="sucessoOverlay" style="display:none;">
     <div class="sucesso-container">
       <div class="sucesso-icone">✅</div>
